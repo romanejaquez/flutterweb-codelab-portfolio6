@@ -1,0 +1,916 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Flutter Web Codelab (pt.6) - Responsive Flutter Web Apps</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements-tmp/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="flutter-web-codelab-riverpod6"
+                  title="Flutter Web Codelab (pt.6) - Responsive Flutter Web Apps"
+                  environment="web"
+                  feedback-link="https://romanjustcodes.web.app">
+    
+      <google-codelab-step label="Overview" duration="0">
+        <p>In this codelab, we&#39;ll focus on the following:</p>
+<ul>
+<li>Implement responsive design in our Flutter web apps</li>
+<li>Define the breakpoints supported in our web app</li>
+<li>Create the configuration classes holding the values to support responsiveness</li>
+<li>Consume the configuration classes and fetch them depending on the device&#39;s dimensions accordingly</li>
+</ul>
+<h2 is-upgraded>What is Responsive Design?</h2>
+<p>When a Flutter app is responsive, the widgets adjust based on the size of the screen they are presented on, and programmatically change based on a set of rules given to the rendering platform.</p>
+<p>Flutter provides a set of widgets and constructs to achieve responsiveness in your apps out of the box, starting from the <a href="https://api.flutter.dev/flutter/widgets/MediaQuery-class.html" target="_blank">MediaQuery</a> widget, which we&#39;ll make use of to achieve the responsiveness shown below.</p>
+<p>Notice how when we shrink the browser window, things change orientation (picture and hand icon change from horizontal to vertical at certain window sizes, or &#34;breakpoints&#34;, the left navigation disappears and switches to a hamburger menu instead, which you can expand and collapse by tapping on the menu icon, etc.). This is the premise of responsive design.</p>
+<p class="image-container"><img alt="Responsive UI" src="img/2f0af9d00c828c4.gif"></p>
+<p><strong>Responsive Design</strong> is the approach that suggests that the user interface should &#34;respond&#34; to the user&#39;s screen size, device orientation, in the hopes of achieving a fluid user interface that satisfies the needs of users and delivers a seamless experience.</p>
+<p>Not to be confused with <strong>Adaptive Design</strong> as this deals with the different device types or the capabilities of the underlying platform in which the app is being run on, such as mobile and desktop, since for example, it requires dealing with mouse and keyboard input, as well as touch input, or sensors, etc.</p>
+<p>Adaptive and responsive can be viewed as separate dimensions of an app: you can have an adaptive app that is not responsive, or vice versa. And, of course, an app can be both, or neither.</p>
+<p>For more info on creating responsive and adaptive apps, follow <a href="https://docs.flutter.dev/ui/layout/adaptive-responsive" target="_blank">this link</a>.</p>
+<p>And if you want a deeper dive into responsive Flutter web apps, you can check out <a href="https://dartpad.dev/workshops.html?webserver=https://romanejaquez.github.io/responsive-ui-flutter-workshop/#Step1" target="_blank">this codelab</a> where I dive into other available widgets that facilitate responsiveness with more fine-grained control.</p>
+<p>Let&#39;s proceed!</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Setting the infrastructure to handle responsiveness in our UI" duration="0">
+        <p>First of all, the upcoming set of steps are needed if you want to roll out your own implementation of a responsive UI strategy, which is pretty straightforward - but you could also use third-party packages that go a bit beyond this but implement similar approaches. I recommend using <a href="https://pub.dev/packages/responsive_builder" target="_blank">responsive_builder</a> package should you decide not to roll your own.</p>
+<p>But since I like to limit the amount of packages I bring into my app to make it leaner and the required plumbing to achieve responsiveness is not that huge, I&#39;d rather do it myself. Proceed with this notion.</p>
+<p>In the <strong>lib/helpers/enums.dart</strong> file, add the following enumeration:</p>
+<pre><code language="language-dart" class="language-dart">//... rest of the code omitted
+
+enum DeviceType {
+  mobile,
+  tablet,
+  desktop
+}
+
+</code></pre>
+<p>The <strong>DeviceType</strong> enum denotes the three major screen sizes we&#39;ll be supporting on our Flutter web app.</p>
+<p>Also in the <strong>lib/helpers</strong> folder, create a new file called <strong>responsive_ui_helper.dart</strong> and add the following class (with the corresponding imports):</p>
+<pre><code language="language-dart" class="language-dart">class ResponsiveUIHelper {
+
+  // our supported max window width sizes
+  static const int mobileMaxWidth = 375;
+  static const int tabletMaxWidth = 768;
+  static const int desktopMaxWidth = 1024;
+
+  static DeviceType getDeviceType(BuildContext context) {
+
+    final deviceSize = MediaQuery.of(context).size;
+
+    final deviceWidth = deviceSize.width;
+
+    if (deviceWidth &gt; ResponsiveUIHelper.desktopMaxWidth) {
+      return DeviceType.desktop;
+    }
+
+    if (deviceWidth &gt; ResponsiveUIHelper.tabletMaxWidth) {
+      return DeviceType.tablet;
+    }
+
+    return  DeviceType.mobile;
+  }
+}
+
+</code></pre>
+<p>The <strong>ResponsiveUIHelper</strong> takes in a <strong>BuildContext</strong> since we need to query the <strong>MediaQuery.of</strong> with it in order to extract the <strong>size</strong> of the current media (i.e. the window containing our web app). Querying the current media using MediaQuery.of will cause your widget to rebuild automatically whenever the MediaQueryData changes (e.g., if the user rotates their device).</p>
+<p>We check the <strong>size.width</strong> to determine whether the current width falls within our three supported window widths (<strong>desktopMaxWidth</strong>, <strong>tabletMaxWidth</strong> or <strong>mobileMaxWidth</strong>) and return the corresponding enum.</p>
+<p>I&#39;ll show you how to use it in a bit.</p>
+<p>Let&#39;s also add another file that we&#39;ll use throughout your app to hold styling information (for now, I want to hold gap sizes for spacing purposes) to use in different screen sizes.</p>
+<p>In the <strong>lib</strong> folder, create a sub-folder called <strong>styles</strong>, and a file called <strong>styles.dart</strong>. Add the following class:</p>
+<pre><code language="language-dart" class="language-dart">import &#39;package:flutter/material.dart&#39;;
+
+class PersonalPortfolioStyles {
+
+  static const SizedBox smallVGap = SizedBox(height: 20);
+  static const SizedBox mediumVGap = SizedBox(height: 40);
+  static const SizedBox largeVGap = SizedBox(height: 60);
+
+  static const SizedBox smallHGap = SizedBox(width: 20);
+  static const SizedBox mediumHGap = SizedBox(width: 40);
+  static const SizedBox largeHGap = SizedBox(width: 60);
+}
+
+</code></pre>
+<p>I&#39;m just defining some baseline properties of type <strong>SizedBox</strong> so I can use them as either vertical or horizontal gaps in different denominations (small to large). Later I can expand on this and build my own design system.</p>
+<p>The suggested way to handle responsiveness is as follows:</p>
+<ul>
+<li>Capture the values that will change in response to your window resizing, from small to large under each of the designated breakpoints (mobile, tablet or desktop); the values could be font sizes, dimensions of widgets, alignments / orientation of things, etc.</li>
+</ul>
+<p>These values dictate how your UI best arranges itself under these conditions (i.e. for mobile something could be laid out vertically while on desktop is horizontal; for mobile a font can be 40px, while for tablet it can be 60px and for desktop 100px, etc.).</p>
+<ul>
+<li>Create a configuration class that holds all these values</li>
+<li>Return a configuration class instance with the populated values according to the breakpoint under which they fall</li>
+</ul>
+<p>Let&#39;s start with the welcome page and let&#39;s make it responsive.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Create the WelcomePage Responsive Config class" duration="0">
+        <p>Go to the <strong>lib/features/welcome/presentation</strong> folder, create a subfolder called <strong>responsiveness</strong> and add a file called <strong>welcome_page_responsive.config.dart</strong>. Add the following class (add the required imports):</p>
+<pre><code language="language-dart" class="language-dart">class WelcomePageResponsiveConfig {
+
+  final double titleSize;
+  final double subTitleSize;
+  final double badgeSize;
+  final double handSize;
+  final double imageSize;
+  final double imageBorderSize;
+  final Axis headerAxis;
+  final Axis subtitleAxis;
+  final SizedBox headerGap;
+  final SizedBox subtitleGap;
+
+  WelcomePageResponsiveConfig({
+    required this.headerAxis,
+    required this.titleSize,
+    required this.subTitleSize,
+    required this.badgeSize,
+    required this.handSize,
+    required this.imageSize,
+    required this.imageBorderSize,
+    required this.subtitleAxis,
+    required this.headerGap,
+    required this.subtitleGap
+  });
+
+}
+
+</code></pre>
+<p>Notice how this class contains all the properties we deem appropriate to manipulate and the things we want to change according to the supported screen sizes and breakpoints.</p>
+<p>Inside this same class, you will create a <strong>Map</strong>, type &lt;<strong>DeviceType</strong>, <strong>WelcomePageResponsiveConfig</strong>&gt; called <strong>responsiveUI</strong>; this will return the corresponding instance of the <strong>WelcomePageResponsiveConfig</strong> based on the corresponding <strong>DeviceType</strong>.</p>
+<p>Add the map as follows:</p>
+<pre><code language="language-dart" class="language-dart">//... inside the WelcomePageResponsiveConfig class...
+
+static Map&lt;DeviceType, WelcomePageResponsiveConfig&gt; responseUI = {
+    DeviceType.mobile: WelcomePageResponsiveConfig(
+      titleSize: 50,
+      subTitleSize: 20,
+      badgeSize: 50,
+      handSize: 50,
+      imageSize: 60,
+      imageBorderSize: 4,
+      headerAxis: Axis.vertical,
+      subtitleAxis: Axis.vertical,
+      headerGap: PersonalPortfolioStyles.mediumVGap,
+      subtitleGap: PersonalPortfolioStyles.smallVGap
+    ),
+    DeviceType.tablet: WelcomePageResponsiveConfig(
+      titleSize: 80,
+      subTitleSize: 30,
+      badgeSize: 60,
+      handSize: 60,
+      imageSize: 80,
+      imageBorderSize: 6,
+      headerAxis: Axis.horizontal,
+      subtitleAxis: Axis.horizontal,
+      headerGap: PersonalPortfolioStyles.mediumHGap,
+      subtitleGap: PersonalPortfolioStyles.smallHGap
+    ),
+    DeviceType.desktop: WelcomePageResponsiveConfig(
+      titleSize: 100,
+      subTitleSize: 40,
+      badgeSize: 80,
+      handSize: 90,
+      imageSize: 100,
+      imageBorderSize: 8,
+      headerAxis: Axis.horizontal,
+      subtitleAxis: Axis.horizontal,
+      headerGap: PersonalPortfolioStyles.mediumHGap,
+      subtitleGap: PersonalPortfolioStyles.smallHGap
+    ),
+  };
+
+</code></pre>
+<p>Those are the values we consider appropriate and that will make our app look great under each corresponding <strong>DeviceType</strong> option.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Consume the Responsive Config Class in the WelcomePage widget" duration="0">
+        <p>Now that we set everything up, let&#39;s consume it inside our widget and replace the corresponding values.</p>
+<p>Go to the <strong>features/welcome/presentation/pages/welcome.page.dart</strong>, and as the first line inside its <strong>build</strong> method, do the following:</p>
+<pre><code language="language-dart" class="language-dart">//... inside the build method, as the first line:
+
+var uiConfig = WelcomePageResponsiveConfig.responsiveUI[ResponsiveUIHelper.getDeviceType(context)]!;
+
+</code></pre>
+<p>We first call the <strong>ResponsiveUIHelper</strong>&#39;s <strong>getDeviceType()</strong> method, passing the current context, out of which we get the <strong>DeviceType</strong> enum value that falls under our current window size. Then, in turn, we pass that value to our <strong>WelcomePageResponsiveConfig.responsiveUI</strong> static Map, which brings us our <strong>WelcomePageResponsiveConfig</strong> which we hold locally in a variable called <strong>uiConfig</strong>.</p>
+<p>Now you can use the <strong>uiConfig</strong> instance of <strong>WelcomePageResponsiveConfig</strong> and populate the hard-coded values for reach of the corresponding variables in question.</p>
+<p>Copy the code below as the new content of the <strong>body</strong> of our <strong>welcome.page.dart</strong> file (and add missing imports):</p>
+<pre><code language="language-dart" class="language-dart">//... inside the body - replace it with this code:
+
+final uiConfig = WelcomePageResponsiveConfig.
+    responsiveUI[ResponsiveUIHelper.getDeviceType(context)]!;
+
+    final welcomeDataAsync = ref.watch(welcomeProvider);
+
+    return welcomeDataAsync.when(
+        loading: () =&gt; const Center(child: CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation(Colors.white),
+        )),
+        error:(error, stackTrace) =&gt; ErrorNotification(message: error.toString()),
+        data: (welcomeData) {
+        return Center(
+            child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+                Flex( // &lt;-- replaced Column by Flex
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                direction: uiConfig.headerAxis,  // &lt;-- direction
+                children: [
+                    Container(
+                    width: uiConfig.imageSize, // &lt;-- image size
+                    height: uiConfig.imageSize, // &lt;-- image size
+                    decoration: BoxDecoration(
+                        border: Border.all(
+                        color: PersonalPortfolioColors.welcomePrimary, 
+                                width: uiConfig.imageBorderSize // &lt;-- border size
+                            ),
+                            shape: BoxShape.circle,
+                            image: DecorationImage(
+                            image: NetworkImage(welcomeData.imgPath),
+                                fit: BoxFit.cover
+                            )
+                        )
+                    ),
+                    uiConfig.headerGap,  // &lt;-- added corresponding gaps
+                    Icon(PersonalPortfolioIcons.wave,
+                        size: uiConfig.handSize,  // &lt;-- hand icon size
+                        color: PersonalPortfolioColors.welcomeIcon
+                    ).animate(
+                    onPlay:(controller) {
+                        controller.repeat(reverse: true);
+                    },
+                    ).rotate(
+                        begin: -0.25,
+                        end: 0,
+                        duration: 0.5.seconds,
+                        curve: Curves.easeInOut
+                    )
+                ]
+                ),
+                const GreetingsLabel(),
+                Text.rich(
+                    TextSpan(
+                        style: TextStyle(
+                          fontSize: uiConfig.titleSize,  // &lt;-- title size
+                          color: Colors.white
+                        ),
+                        children: [
+                            const TextSpan(text: &#34;I&#39;m &#34;),
+                            TextSpan(
+                                text: welcomeData.name, 
+                                style: TextStyle( 
+                                    fontWeight: FontWeight.bold
+                                  )
+                                ),
+                            ]
+                    ),
+                    textAlign: TextAlign.center,
+                ),
+                Flex( // &lt;-- replaced Row by Flex
+                direction: uiConfig.headerAxis, // &lt;-- direction
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                        Icon(
+                            PersonalPortfolioIcons.badge,
+                            color: PersonalPortfolioColors.welcomePrimary,
+                            size: uiConfig.badgeSize
+                        ),
+                        uiConfig.subtitleGap, // &lt;-- added corresponding gaps
+                        Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                                Text(welcomeData.title, textAlign: TextAlign.center, style: TextStyle(fontSize: uiConfig.subTitleSize, color: Colors.white)),
+                                Text(welcomeData.subTitle, textAlign: TextAlign.center, style: TextStyle(fontSize: uiConfig.subTitleSize, color: Colors.white)),
+                            ],
+                        )
+                    ]   
+                )
+            ].animate(
+                interval: 100.ms
+            )
+            .slideY(
+                begin: 1, end: 0,
+                duration: 0.5.seconds,
+                curve: Curves.easeInOut
+            ).fadeIn()
+            )
+        );
+        }
+    );
+
+</code></pre>
+<p>Notice all the spots where I replaced the hard-coded values that existed by <strong>uiConfig</strong> and the corresponding properties.</p>
+<p>Also notice something different: I&#39;ve changed the instance of <strong>Row</strong> and <strong>Column</strong> widgets where applied and I replaced them by <strong>Flex</strong> widgets, as some of the values in the <strong>uiConfig</strong> object were of type <strong>Axis</strong>. Since <strong>Row</strong> and <strong>Column</strong> inherit from <strong>Flex</strong> (<strong>Row</strong> is nothing more than a <strong>Flex</strong> with a direction of <strong>Axis.horizontal</strong>, <strong>Column</strong> is a <strong>Flex</strong> with its direction set to <strong>Axis.vertical</strong>), so what I decided to do was use the <strong>direction</strong> property from the <strong>uiConfig</strong> object, and set the direction of these <strong>Flex</strong> widgets according to the orientation I deemed appropriate based on the corresponding breakpoint. For mobile, some of these are <strong>Axis.vertical</strong> while for tablet and desktop the values are <strong>Axis.horizontal</strong> as there&#39;s more real estate width-wise to render their children. This way, as the window width changes and the widget goes through the motion of changing configuration, the <strong>Flex</strong> children would show either vertical or horizontal accordingly.</p>
+<p>Also notice the use of the gap widget properties created in the <strong>styles.dart</strong> and assigned to properties in the <strong>uiConfig</strong> object according to the window size (headerGap, subtitleGap); gaps change from small, medium and large depending on how much space I want to devote to the app under each breakpoint accordingly, as well as either being horizontal or vertical gaps, as we see fit.</p>
+<p>If you run it, you notice that the welcome page changes nicely, while the greeting labels don&#39;t change. Why? well, because recall that the greeting labels is a separate widget. We must consume this <strong>uiConfig</strong> there as well. Instead of passing it into the constructor, let&#39;s still consider a separate, pluggable, encapsulated widget and pull it from inside its <strong>build</strong> method as well.</p>
+<p>Go to the <strong>welcome/presentation/widgets/greetings_label.dart</strong> and in its <strong>build</strong> method, replace the existing code with the bottom code snippet:</p>
+<pre><code language="language-dart" class="language-dart">//... replace the whole body with this:
+
+var uiConfig = WelcomePageResponsiveConfig.
+      responsiveUI[ResponsiveUIHelper.getDeviceType(context)]!;
+
+var greeting = ref.watch(greetingsViewModelProvider);
+
+return Text(greeting, style: 
+    TextStyle(
+      fontSize: uiConfig.titleSize,
+      fontWeight: FontWeight.bold,
+      color: Colors.white
+    )
+);
+
+
+</code></pre>
+<p>Notice how in the same way we are consuming the <strong>WelcomePageResponsiveConfig</strong> config class instance, we are using it here. If you wanted, you could&#39;ve created a whole separate config class for this little widget here - I decided to leverage the existing one; either approach would&#39;ve been good.</p>
+<p>Let&#39;s take it for a spin and see how the responsiveness of this page is looking.</p>
+<p class="image-container"><img alt="App" src="img/bda225ed8918eb64.gif"></p>
+<p>Let&#39;s do another one since we are on a roll - the responsive config class for the Twitter page.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Create the TwitterPage Responsive Config class" duration="0">
+        <p>Same as before, go to the <strong>features/twitter/presentation</strong> folder, create a sub-folder called <strong>responsiveness</strong> - add a file called <strong>twitter_page_responsive.config.dart</strong> and add the following content (add missing imports):</p>
+<pre><code language="language-dart" class="language-dart">class TwitterPageResponsiveConfig {
+
+  final double iconSize;
+  final double titleSize;
+  final double subtitleSize;
+  final double buttonLabelSize;
+  final EdgeInsets buttonPadding;
+  final EdgeInsets buttonMargin;
+
+  TwitterPageResponsiveConfig({
+    required this.iconSize,
+    required this.titleSize,
+    required this.subtitleSize,
+    required this.buttonLabelSize,
+    required this.buttonMargin,
+    required this.buttonPadding
+  });
+
+  static Map&lt;DeviceType, TwitterPageResponsiveConfig&gt; responsiveUI = {
+    DeviceType.mobile: TwitterPageResponsiveConfig(
+      iconSize: 40,
+      titleSize: 60,
+      subtitleSize: 20,
+      buttonLabelSize: 20,
+      buttonMargin: const EdgeInsets.only(top: 20),
+      buttonPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+    ),
+    DeviceType.tablet: TwitterPageResponsiveConfig(
+      iconSize: 60,
+      titleSize: 80,
+      subtitleSize: 30,
+      buttonLabelSize: 20,
+      buttonMargin: const EdgeInsets.only(top: 20),
+      buttonPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+    ),
+    DeviceType.desktop: TwitterPageResponsiveConfig(
+      iconSize: 80,
+      titleSize: 100,
+      subtitleSize: 40,
+      buttonLabelSize: 30,
+      buttonMargin: const EdgeInsets.only(top: 20),
+      buttonPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+    ),
+  };
+}
+
+</code></pre>
+<p>No different than before; we are capturing the values that render appropriately under the designated supported screen sizes / breakpoints in order to ensure a seamless and fluid user experience as the user resizes the screen or consumes this web app on any given device.</p>
+<p>Let&#39;s now go to the <strong>features/twitter/presentation/pages/twitter.page.dart</strong> and replace the whole body of the <strong>build</strong> method with the following code (and adding the required imports):</p>
+<pre><code language="language-dart" class="language-dart">final uiConfig = TwitterPageResponsiveConfig.
+      responsiveUI[ResponsiveUIHelper.getDeviceType(context)]!;
+
+    final twitterPageData = ref.watch(twitterProvider);
+    
+    return twitterPageData.when(
+      loading: () =&gt; const Center(child: CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation(Colors.white),
+      )),
+      error:(error, stackTrace) =&gt; ErrorNotification(message: error.toString()),
+      data: (data) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(data.icon, size: uiConfig.iconSize,
+                color: PersonalPortfolioColors.twitterIcon
+              ).animate(
+                onPlay:(controller) {
+                  controller.repeat(reverse: true);
+                },
+              ).scaleXY(
+                begin: 0.8, end: 1,
+                duration: 1.seconds,
+                curve: Curves.easeInOut
+              ),
+              Text(data.title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: uiConfig.titleSize,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white
+                )
+              ),
+              Text(data.subTitle, style: 
+                TextStyle(
+                  fontSize: uiConfig.subtitleSize,
+                  color: PersonalPortfolioColors.twitterIcon
+                )
+              ),
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () {
+                    Utils.launchUrlLink(data.url);
+                  },
+                  child: Container(
+                    margin: uiConfig.buttonMargin,
+                    padding: uiConfig.buttonPadding,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(40)
+                    ),
+                    child: Text(data.handle, style: 
+                      TextStyle(
+                        fontSize: uiConfig.buttonLabelSize,
+                        color: Colors.white
+                      )
+                    ),
+                  ),
+                ),
+              )
+            ].animate(
+              interval: 100.ms
+            )
+            .slideY(
+              begin: 1, end: 0,
+              duration: 0.5.seconds,
+              curve: Curves.easeInOut
+            ).fadeIn(),
+          )
+        );
+      }
+    );
+
+</code></pre>
+<p>Same as before, we read the <strong>DeviceType</strong> from the <strong>ResponsiveUIHelper.getDeviceType</strong>, pass it to the map from the <strong>TwitterPageResponsiveConfig</strong> and out comes our corresonding <strong>uiConfig</strong>.</p>
+<p>Then just go down the line replacing those values you are interested in - the ones captured in the <strong>TwitterPageResponsiveConfig</strong> class, and you should be good to go.</p>
+<p>Run the app with these changes, and you should get the following result:</p>
+<p class="image-container"><img alt="App" src="img/a7d68fda8785d5ba.gif"></p>
+<p>Looking good so far! Let&#39;s now take care of the navigation, shall we?</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Making the Navigation Responsive" duration="0">
+        <p>This is what we&#39;ll be achieving in this codelab step:</p>
+<p class="image-container"><img alt="App" src="img/1d9fcd2441aef932.png"></p>
+<p>We want to tailor the navigation experience as we consider most appropriate for the screen size in which this web app will be rendered; we think a navigation rail on the left hand side allows to take advantage of the available real estate on desktop and tablet, while hiding it under a hamburger menu provides more room in a limited real estate scenario like in a mobile screen, while still following a common pattern such as using a hamburger menu and sliding the options under a drawer widget.</p>
+<p>Let&#39;s proceed!</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Create the hamburger menu widget" duration="0">
+        <p class="image-container"><img alt="App" src="img/7d784032050d388c.png"></p>
+<p>Let&#39;s create the hamburger menu widget as an independent widget with its own encapsulated behavior. Go to the <strong>features/navigation/presentation/widgets</strong> folder, and create a new file called <strong>hamburger_menu.dart</strong> (all this hamburger talk is making me hungry! ;P) - and add the following widget class (add missing imports):</p>
+<pre><code language="language-dart" class="language-dart">class HamburgerMenu extends StatelessWidget {
+  const HamburgerMenu({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topLeft,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: IconButton(
+            onPressed: () {
+              Utils.mainScaffold.currentState!.openDrawer();
+            },
+            icon: const Icon(
+              Icons.menu, 
+              color: Colors.white, 
+              size: 30
+            )
+          ),
+        ).animate()
+        .scaleXY(
+          begin: 0, end: 1,
+          duration: 0.5.seconds,
+          curve: Curves.easeInOut,
+          alignment: Alignment.center,
+        ).fadeIn(
+          duration: 0.5.seconds,
+          curve: Curves.easeInOut,
+        ),
+      )
+    );
+  }
+}
+
+</code></pre>
+<p>This is a simple widget, which aligns itself to the top left of the screen (this will be added inside the shell&#39;s <strong>Stack</strong>), adds an <strong>IconButton</strong> wrapped inside some <strong>Padding</strong> with a <strong>MouseRegion</strong> so we can see the cursor on the web; the icon button triggers the navigation drawer using the reference to the main scaffold widget in the shell page by calling the <strong>Utils.mainScaffold.currentState!.openDrawer()</strong> method.</p>
+<p>I just added a bit of flare by adding a scale animation paired with a fade in animation using the <strong>animate()</strong> method and chaining a <strong>scaleXY()</strong> followed by a <strong>fadeIn()</strong> with the appropriate parameters. Pretty cool!</p>
+<p>We&#39;ll refer to this widget later as we do the replacement between the navigation rail and this widget.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Create the Responsive Config for the Navigation" duration="0">
+        <p>Just as before with the Twitter and Welcome pages, we&#39;ll encapsulate the configuration values that will toggle between the navigation rail and the hamburger menu. For now we&#39;ll just keep track of a single flag - a boolean to show whether to display the side bar or not.</p>
+<p>In the <strong>features/navigation/presentation</strong> folder, create a sub-folder called <strong>responsiveness</strong>, add a new file called <strong>navigation_responsive.config.dart</strong> and add the following code (add the missing imports as usual):</p>
+<pre><code language="language-dart" class="language-dart">class NavigationResponsiveConfig {
+
+  final bool showSideBar;
+
+  NavigationResponsiveConfig({
+    required this.showSideBar
+  });
+  
+  static Map&lt;DeviceType, NavigationResponsiveConfig&gt; responsiveUI = {
+    DeviceType.mobile: NavigationResponsiveConfig(
+      showSideBar: false
+    ),
+    DeviceType.tablet: NavigationResponsiveConfig(
+      showSideBar: true
+    ),
+    DeviceType.desktop: NavigationResponsiveConfig(
+      showSideBar: true
+    ),
+  };
+}
+
+</code></pre>
+<p>In this config class called <strong>NavigationResponsiveConfig</strong>, we are keeping track of a boolean flag called <strong>showSideBar</strong>; notice how in the <strong>mobile</strong> configuration we hide it, while we show it for the rest.</p>
+<p>Let&#39;s make use of it now.</p>
+<p>Let&#39;s now to go the <strong>features/navigation/presentation/widgets/left_navigation.dart</strong>.</p>
+<p>Aside from pulling the <strong>responsiveUI</strong> map and consuming within this widget, we&#39;ll wrap the main <strong>Container</strong> widget inside a <strong>Visibility</strong> widget, as follows (replace the whole content of the <strong>build</strong> method with the code below + missing imports):</p>
+<pre><code language="language-dart" class="language-dart">//... replace the inside of the body in the left_navigation.dart
+
+var uiConfig = NavigationResponsiveConfig.responsiveUI[ResponsiveUIHelper.getDeviceType(context)]!;
+
+var navItems = ref.watch(navigationItemsViewModelProvider);
+  
+return Visibility(
+    visible: uiConfig.showSideBar,
+    replacement: const HamburgerMenu(),
+    child: Container(
+        decoration: BoxDecoration(
+            gradient: LinearGradient(
+                colors: [
+                    Colors.white.withOpacity(0.25),
+                    Colors.transparent,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter
+            )
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+            children: List.generate(navItems.length, (index) {
+                return LeftNavigationItemTile(
+                    item: navItems[index]
+                );
+            }
+            ).animate(
+                interval: 100.ms
+            ).slideY(
+                begin: 1, end: 0,
+                duration: 0.5.seconds,
+                curve: Curves.easeInOut,
+            ).fadeIn(
+                duration: 0.5.seconds,
+                curve: Curves.easeInOut
+            ),
+        )
+    ),
+);
+
+</code></pre>
+<p>Notice the first line, which is pulling the <strong>NavigationResponsiveConfig</strong> instance and hold it in the <strong>uiConfig</strong> property.</p>
+<p>Now, notice how we wrap the <strong>Container</strong> inside a <strong>Visibility</strong> widget, and feed its <strong>visible</strong> property with the <strong>uiConfig.showSidebar</strong>, which either renders what&#39;s in its <strong>child</strong> property, otherwise it shows what&#39;s fed into its <strong>replacement</strong> property - the <strong>HamburgerMenu</strong> widget. Pretty convenient - we show the navigation or the hamburger menu accordingly.</p>
+<p>Run the app and resize it between an approximate tablet width and mobile to see the switching:</p>
+<p class="image-container"><img alt="App" src="img/ecec1fb5b07cf772.gif"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Creating the Side Navigation Drawer" duration="0">
+        <p class="image-container"><img alt="App" src="img/b41b9f4491bba8f8.gif"></p>
+<p>This is a simple one, so I&#39;ll just fly through it.</p>
+<p>I&#39;ll create first what each of the items in the drawer menu looks like. I&#39;ll call it <strong>SideNavigationDrawerRow</strong>.</p>
+<p>In the <strong>features/navigation/presentation/widgets</strong> folder, add a new file called <strong>side_navigation_drawer_row.dart</strong>, and add the following code (plus required imports):</p>
+<pre><code language="language-dart" class="language-dart">class SideNavigationDrawerRow extends ConsumerWidget {
+
+  final LeftNavigationItem item;
+  const SideNavigationDrawerRow({
+    super.key,
+    required this.item
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+
+    var labelIconColor = PersonalPortfolioColors.pageColor[item.route]!.colors[1];
+    var btnColor = PersonalPortfolioColors.pageColor[item.route]!.colors[0].withOpacity(0.25);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ElevatedButton(
+        onPressed: () {
+          ref.read(navigationItemsViewModelProvider.notifier).selectNavItem(item);
+          Utils.mainScaffold.currentState!.closeDrawer();
+        },
+        style: ElevatedButton.styleFrom(
+          foregroundColor: btnColor,
+          shadowColor: Colors.transparent,
+          backgroundColor: item.isSelected ? btnColor : Colors.transparent,
+          shape: const StadiumBorder(),
+          elevation: 0
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Icon(item.icon, color: labelIconColor),
+              PersonalPortfolioStyles.smallHGap,
+              Text(item.label, 
+                style: TextStyle(
+                  fontWeight: item.isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: labelIconColor,
+                  fontSize: 20
+                )
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+</code></pre>
+<p>In the newly created <strong>SideNavigationDrawerRow</strong> class, we create an <strong>ElevatedButton</strong> widget with the relevant styles to match our desired look. This widget takes via its constructor an instance of <strong>LeftNavigationItem</strong>, from which we read the <strong>isSelected</strong> property to drive the selected look.</p>
+<p>We made this into a <strong>ConsumerWidget</strong> so we can read the navigation provider and perform this call inside the button&#39;s <strong>onPressed()</strong> event (do not copy - just for reference):</p>
+<pre><code language="language-dart" class="language-dart">ref.read(navigationItemsViewModelProvider.notifier).selectNavItem(item);
+Utils.mainScaffold.currentState!.closeDrawer();
+
+</code></pre>
+<p>We read the <strong>navigationItemsViewModelProvider</strong> to execute its <strong>selectNavItem</strong>, passing the injected navigation item, followed by a call to <strong>Utils.mainScaffold.currentState!.closeDrawer()</strong> to close the drawer.</p>
+<h2 is-upgraded>Create the SideNavigationDrawer widget</h2>
+<p>Proceed to create the <strong>Drawer</strong> widget, which we&#39;ll call <strong>SideNavigationDrawer</strong>. In the <strong>navigation/presentation/widgets</strong> folder, add a new file called <strong>side_navigation_drawer.dart</strong>, and add the following code + required imports, as such:</p>
+<pre><code language="language-dart" class="language-dart">class SideNavigationDrawer extends ConsumerWidget {
+  const SideNavigationDrawer({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+
+    var navItems = ref.watch(navigationItemsViewModelProvider);
+  
+    return Drawer(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+            children: List.generate(navItems.length, (index) {
+                return SideNavigationDrawerRow(
+                  item: navItems[index]
+                );
+              }
+            ).animate(
+              interval: 100.ms
+            ).slideX(
+              begin: -0.5, end: 0,
+              duration: 0.5.seconds,
+              curve: Curves.easeInOut,
+            ).fadeIn(
+              duration: 0.5.seconds,
+              curve: Curves.easeInOut
+            ),
+          ),
+      ),
+    );
+  }
+}
+
+</code></pre>
+<p>This widget returns a <strong>Drawer</strong> as the main widget, which wraps a <strong>Column</strong> with some padding, with <strong>SideNavigationDrawerRow</strong> child widgets as expected, pulled out of the <strong>navigationItemsViewModelProvider</strong> after reading from that provider.</p>
+<p>Now let&#39;s place the drawer where it goes - in the shell page.</p>
+<p>Go to the <strong>features/shell/presentation/pages/portfoliomain.page.dart</strong> file; proceed to replace the contents of the <strong>build</strong> method of the <strong>PortfolioMainPage</strong> widget by the following code (add missing imports):</p>
+<pre><code language="language-dart" class="language-dart">//... inside the build method of the portfoliomain.page.dart:
+    
+return Scaffold(
+    key: Utils.mainScaffold,
+    drawer: const SideNavigationDrawer(),
+    backgroundColor: PersonalPortfolioColors.mainBlue,
+    body: Builder(
+        builder: (context) {
+
+            var navUIConfig = NavigationResponsiveConfig.responsiveUI[ResponsiveUIHelper.getDeviceType(context)]!;
+
+            if (!navUIConfig.showSideBar &amp;&amp; 
+                Utils.mainScaffold.currentState!.isDrawerOpen) {
+                    Utils.mainScaffold.currentState!.closeDrawer();
+            }
+            return Stack(
+                children: [
+                    const PageColor(),
+                    const BgAnimation(),
+                    Center(
+                        child: child
+                    ),
+                    const Align(
+                        alignment: Alignment.centerLeft,
+                        child: LeftNavigation(),
+                    ),
+                ],
+            );
+        }
+    )
+);
+
+
+</code></pre>
+<p>Let&#39;s inspect this code.</p>
+<p>Notice the <strong>Scaffold</strong>&#39;s <strong>key</strong> set to <strong>Utils.mainScaffold</strong> - this is what&#39;s facilitating our ability to trigger the <strong>Drawer</strong>&#39;s opening and closing capabilities programmatically from other widgets.</p>
+<p>We add our newly created <strong>Drawer</strong> - the <strong>SideNavigationDrawer</strong> widget as the <strong>drawer</strong> of this scaffold.</p>
+<p>Now, we wrap the whole body of the <strong>Scaffold</strong> inside a <strong>Builder</strong> - that&#39;s because we cannot access the <strong>Scaffold</strong> instance and its provided capabilities (drawer, snackbar, bottom sheet, etc.) inside the same build context in which it is defined - that&#39;s why we introduce a new <strong>context</strong> by wrapping the <strong>Scaffold</strong>&#39;s body inside a <strong>Builder</strong> widget, from which we can access the <strong>Scaffold</strong> above efficiently.</p>
+<p>Inside the <strong>Builder</strong>&#39;s <strong>builder</strong> callback, we fetch a <strong>NavigationResponsiveConfig</strong> instance so we can query whether the side bar is shown and if it is, check whether it is open or not, that way we can close it, thanks to the following logic (do not copy - just for reference):</p>
+<pre><code language="language-dart" class="language-dart">//... rest of the code omitted for brevity
+
+var navUIConfig = NavigationResponsiveConfig.responsiveUI[ResponsiveUIHelper.getDeviceType(context)]!;
+    
+if (!navUIConfig.showSideBar 
+    &amp;&amp; Utils.mainScaffold.currentState!.isDrawerOpen) {
+    Utils.mainScaffold.currentState!.closeDrawer();
+}
+
+</code></pre>
+<p>And that&#39;s it, folks! We were able to implement a key strategy that will make or break your apps and provide a flawless, fluid experience: responsiveness. We&#39;re able now to cater to multiple users and deliver a tailored user experience regardless of the device in which they view it, which is nowadays expected from web apps in today&#39;s age.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Your challenge: Implement Responsiveness on the rest of the pages" duration="0">
+        <p>Your challenge would be to implement responsiveness on the rest of the pages in this web app. We did the welcome and Twitter page; now go ahead and do it for the LinkedIn, Github and Web pages.</p>
+<h2 is-upgraded>Create corresponding responsive config class for each page</h2>
+<p>You can use the <strong>TwitterPageResponsiveConfig</strong> class as a reference, but make sure you capture the values you want to have changed upon your UI resizing within the designated breakpoints.</p>
+<p>Create then the following:</p>
+<ul>
+<li>A <strong>LinkedInPageResponsiveConfig</strong> class inside a <strong>responsiveness</strong> sub-folder in the <strong>linkedin/presentation</strong> folder</li>
+<li>A <strong>GithubPageResponsiveConfig</strong> class inside a <strong>responsiveness</strong> sub-folder in the <strong>github/presentation</strong> folder</li>
+<li>A <strong>WebPageResponsiveConfig</strong> class inside a <strong>responsiveness</strong> sub-folder in the <strong>web/presentation</strong> folder</li>
+</ul>
+<h2 is-upgraded>Create the required mapping inside each responsive config class</h2>
+<p>Follow the <strong>TwitterPageResponsiveConfig</strong> to create a map that maps the device to the config class with the appropriate values.</p>
+<h2 is-upgraded>Consume the corresponding responsive config class inside each page widget</h2>
+<p>Hint: call the corresponding responsive config class; follow this example:</p>
+<pre><code language="language-dart" class="language-dart">final uiConfig = TwitterPageResponsiveConfig.
+      responsiveUI[ResponsiveUIHelper.getDeviceType(context)]!;
+
+</code></pre>
+<p>Then use the <strong>uiConfig</strong> and read the relevant properties and do the proper replacements in your interface.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Bonus: Refactoring the Responsive UI Config Fetching mechanism" duration="0">
+        <p>This section is optional as our app is working as expected in terms of responsiveness and how it determines which responsive configuration fits best under the supported screen sizes.</p>
+<p>This is just an improvement on the way the corresponding configuration gets fetched - some syntactic sugar - around the <strong>BuildContext</strong> which is required to query the media&#39;s dimensions so we can determine which one to pull.</p>
+<p>Right now, the way to fetch the corresponding responsive config class is as follows:</p>
+<pre><code language="language-dart" class="language-dart">final uiConfig = TwitterPageResponsiveConfig.responsiveUI[ResponsiveUIHelper.getDeviceType(context)]!;
+
+</code></pre>
+<p>Still works, but it may be a bit verbose.</p>
+<p>We want it to convert it to this:</p>
+<pre><code language="language-dart" class="language-dart">final uiConfig = context.uiConfig&lt;WelcomePageResponsiveConfig&gt;();
+
+</code></pre>
+<p>Let&#39;s proceed!</p>
+<p>In the <strong>lib/shared</strong> folder, create a new sub-folder called <strong>models</strong> - this will serve as the place to put shared common models used throughout, not tied to a given feature. Create a file called <strong>iresponsive.config.dart</strong> and add the following code:</p>
+<pre><code language="language-dart" class="language-dart">abstract class IResponsiveConfig {}
+
+</code></pre>
+<p>At the moment we only want all responsive config classes to implement this contract so we can treat them polymorphycally.</p>
+<p>Now go to all the responsive config classes created (i.e. <strong>WelcomePageResponsiveConfig</strong>) and add the <strong>implements</strong> followed by this new contract, as such:</p>
+<pre><code language="language-dart" class="language-dart">//... just add the &#34;implements IResponsiveConfig&#34;
+//... leave the rest of the code as-is
+
+class WelcomePageResponsiveConfig implements IResponsiveConfig {
+
+  // rest of the code here
+
+}
+
+</code></pre>
+<p>With this in place, now we&#39;ll proceed to add an extension method to the <strong>BuildContext</strong>. We&#39;ll add this in the <strong>lib/helpers/responsive_ui_helper.dart</strong> file, right above the <strong>ResponsiveUIHelper</strong> class, as such:</p>
+<pre><code language="language-dart" class="language-dart">extension GetResponsiveUIConfig on BuildContext {
+
+  T uiConfig&lt;T&gt;() {
+
+    late IResponsiveConfig configClass;
+    DeviceType device = ResponsiveUIHelper.getDeviceType(this);
+
+    switch(T) {
+      case WelcomePageResponsiveConfig:
+        configClass = WelcomePageResponsiveConfig.responsiveUI[device]!;
+        break;
+      case TwitterPageResponsiveConfig:
+        configClass = TwitterPageResponsiveConfig.responsiveUI[device]!;
+        break;
+      case NavigationResponsiveConfig:
+        configClass =  NavigationResponsiveConfig.responsiveUI[device]!;
+        break;
+      // other configs here
+    }
+
+    return configClass as T;
+  }
+}
+
+</code></pre>
+<p><a href="https://dart.dev/language/extension-methods" target="_blank"><strong>Extension methods</strong></a> add capabilities to existing libraries; for that we make use of the <strong>extension</strong> keyword. In our case, we want to add capabilities to the <strong>BuildContext</strong> to be able to fetch the corresponding responsive UI config class from the given enum value, and using the current context instance. We pull the corresponding <strong>DeviceType</strong> through the <strong>this</strong> keyword (meaning the current <strong>BuildContext</strong> this is affecting). We also use generics to cast it to the appropriate class.</p>
+<p>After this change, now you go to the corresponding classes where we used this approach, and replace the :</p>
+<pre><code language="language-dart" class="language-dart">final uiConfig = WelcomePageResponsiveConfig.
+      responsiveUI[ResponsiveUIHelper.getDeviceType(context)]!;
+
+</code></pre>
+<p>By this:</p>
+<pre><code language="language-dart" class="language-dart">final uiConfig = context.uiConfig&lt;WelcomePageResponsiveConfig&gt;();
+
+</code></pre>
+<p>Now it looks more concise and compact, offering you the flexibility to call it from anywhere you have access to the context with less imports, and using the goodies offered by Dart as far as <a href="https://dart.dev/language/extension-methods" target="_blank">extension methods</a>, generics, etc.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Wrap-up" duration="0">
+        <p>And with that, we&#39;re done with this codelab for this workshop, where we accomplished the following:</p>
+<ul>
+<li>Implemented responsive design in our Flutter web app</li>
+<li>Defined the breakpoints supported in our web app</li>
+<li>Created the configuration classes holding the values to support responsiveness</li>
+<li>Consumed the configuration classes and fetch them depending on the device&#39;s width accordingly</li>
+</ul>
+<h2 is-upgraded>Please don&#39;t forget to follow me on social media:</h2>
+<ul>
+<li>On Twitter (<a href="https://www.twitter.com/drcoderz" target="_blank">@drcoderz</a>)</li>
+<li>On YouTube (<a href="https://www.youtube.com/channel/UCKsp3r1ERjCpKJtD2n5WtPg" target="_blank">Roman Just Codes</a>)</li>
+<li>On my <a href="https://romanjustcodes.web.app/" target="_blank">Personal Portfolio</a></li>
+<li>On <a href="https://medium.com/@romanejaquez" target="_blank">Medium</a></li>
+<li>On <a href="https://www.linkedin.com/in/roman-jaquez-8941a424/" target="_blank">LinkedIn</a></li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Complete Code" duration="0">
+        <p>The complete code is available on Github by following this <a href="https://github.com/romanejaquez/roman-web-portfolio.git" target="_blank">link</a>.</p>
+<h2 is-upgraded>Happy Coding!!!</h2>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements-tmp/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements-tmp/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements-tmp/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements-tmp/codelab-elements.js"></script>
+  <script src="//support.google.com/inapp/api.js"></script>
+
+</body>
+</html>
