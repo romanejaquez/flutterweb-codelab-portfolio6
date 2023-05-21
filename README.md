@@ -9,6 +9,8 @@ In this codelab, we'll focus on the following:
 - Create the configuration classes holding the values to support responsiveness
 - Consume the configuration classes and fetch them depending on the device's dimensions accordingly
 
+![Responsive UI](responsiveness.gif)
+
 ### Please don't forget to follow me on social media:
 
 - On Twitter ([@drcoderz](https://www.twitter.com/drcoderz))
